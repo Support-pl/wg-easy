@@ -100,6 +100,14 @@ class API {
     });
   }
 
+  async verifyToken({ token }) {
+    return this.call({
+      method: "post",
+      path: "/token-verify",
+      body: { token },
+    });
+  }
+
   async getClients() {
     return this.call({
       method: 'get',

@@ -400,19 +400,53 @@ new Vue({
     this.setTheme(this.uiTheme);
 
     this.api = new API();
-    this.api.getSession()
-      .then((session) => {
-        this.authenticated = session.authenticated;
-        this.requiresPassword = session.requiresPassword;
-        this.refresh({
-          updateCharts: this.updateCharts,
-        }).catch((err) => {
+
+    const urlParams = new URLSearchParams(window.location.search);
+
+    const token = urlParams.get("token");
+
+    if (token) {
+      this.api
+        .verifyToken({ token })
+        .then((session) => {
+          const theme = urlParams.get("theme");
+          const lang = urlParams.get("lang");
+            if (lang && i18n.availableLocales.includes(lang)) {
+              localStorage.setItem("lang", lang);
+              i18n.locale = lang;
+            }
+            if (theme) {
+              localStorage.setItem("theme", theme);
+            }
+
+            window.location.search = "";
+            this.authenticated = session.authenticated;
+            this.requiresPassword = session.requiresPassword;
+            this.refresh({
+              updateCharts: this.updateCharts,
+            }).catch((err) => {
+              alert(err.message || err.toString());
+            });
+        })
+        .catch((err) => {
           alert(err.message || err.toString());
         });
-      })
-      .catch((err) => {
-        alert(err.message || err.toString());
-      });
+    } else {
+      this.api
+        .getSession()
+        .then((session) => {
+          this.authenticated = session.authenticated;
+          this.requiresPassword = session.requiresPassword;
+          this.refresh({
+            updateCharts: this.updateCharts,
+          }).catch((err) => {
+            alert(err.message || err.toString());
+          });
+        })
+        .catch((err) => {
+          alert(err.message || err.toString());
+        });
+    }
 
     this.api.getRememberMeEnabled()
       .then((rememberMeEnabled) => {
@@ -467,7 +501,7 @@ new Vue({
 
     Promise.resolve().then(async () => {
       const lang = await this.api.getLang();
-      if (lang !== localStorage.getItem('lang') && i18n.availableLocales.includes(lang)) {
+      if (!localStorage.getItem('lang') && i18n.availableLocales.includes(lang)) {
         localStorage.setItem('lang', lang);
         i18n.locale = lang;
       }
