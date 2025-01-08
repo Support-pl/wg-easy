@@ -21,6 +21,7 @@ const {
   readBody,
   setHeader,
   serveStatic,
+  handleCors,
 } = require('h3');
 
 const WireGuard = require('../services/WireGuard');
@@ -40,7 +41,9 @@ const {
   WG_ENABLE_EXPIRES_TIME,
   ENABLE_PROMETHEUS_METRICS,
   PROMETHEUS_METRICS_PASSWORD,
+  JWT_SECRET
 } = require('../config');
+const { sign, verify } = require('jsonwebtoken');
 
 const requiresPassword = !!PASSWORD_HASH;
 const requiresPrometheusPassword = !!PROMETHEUS_METRICS_PASSWORD;
@@ -82,6 +85,26 @@ module.exports = class Server {
     })));
 
     const router = createRouter();
+
+    //allow cors *
+    app.use(
+      "/",
+      defineEventHandler(async (event) => {
+        const didHandleCors = handleCors(event, {
+          origin: "*",
+          preflight: {
+            statusCode: 204,
+          },
+          methods: "*",
+        });
+        if (didHandleCors) {
+          return;
+        }
+
+        return;
+      })
+    );
+
     app.use(router);
 
     router
@@ -170,6 +193,57 @@ module.exports = class Server {
           throw createError({
             status: 401,
             message: 'Incorrect Password',
+          });
+        }
+
+        if (MAX_AGE && remember) {
+          event.node.req.session.cookie.maxAge = MAX_AGE;
+        }
+        event.node.req.session.authenticated = true;
+        event.node.req.session.save();
+
+        debug(`New Session: ${event.node.req.session.id}`);
+
+        return { success: true };
+      })).post('/api/token', defineEventHandler(async (event) => {
+        const { password, remember } = await readBody(event);
+
+        if (!requiresPassword) {
+          // if no password is required, the API should never be called.
+          // Do not automatically authenticate the user.
+          throw createError({
+            status: 401,
+            message: "Invalid state",
+          });
+        }
+
+        if (!isPasswordValid(password, PASSWORD_HASH)) {
+          throw createError({
+            status: 401,
+            message: "Incorrect Password",
+          });
+        }
+
+        if (MAX_AGE && remember) {
+          event.node.req.session.cookie.maxAge = MAX_AGE;
+        }
+        event.node.req.session.authenticated = true;
+        event.node.req.session.save();
+        debug(`New Session: ${event.node.req.session.id}`);
+
+        const token = sign({ sessionId: event.node.req.session.id }, JWT_SECRET, {
+          expiresIn: "2m",
+        });
+        return { success: true, data: { token } };
+      })).post('/api/token-verify', defineEventHandler(async (event) => {
+        const { token } = await readBody(event);
+
+        const data = verify(token, JWT_SECRET);
+
+        if (data?.sessionId?.length < 10) {
+          throw createError({
+            status: 401,
+            message: "Incorrect token",
           });
         }
 
