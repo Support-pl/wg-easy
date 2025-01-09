@@ -1,6 +1,11 @@
 name: Build & Publish Latest Enabled
 
 on:
+  push:
+    branches:
+      - "master"
+      - "dev"
+      - "dev-*"
   workflow_dispatch:
 
 jobs:
