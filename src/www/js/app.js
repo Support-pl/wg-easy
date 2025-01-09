@@ -379,6 +379,32 @@ new Vue({
     toggleCharts() {
       localStorage.setItem('uiShowCharts', this.uiShowCharts ? 1 : 0);
     },
+    async tryAuth({password,token}){
+      try {
+        let session;
+        if (password) {
+          session = await this.api.createSession({ password });
+        } else if (token) {
+          session = await this.api.verifyToken({ token });
+        } else {
+          session = await this.api.getSession();
+        }
+
+        if (session) {
+          this.authenticated = session.authenticated;
+          this.requiresPassword = session.requiresPassword;
+          await this.refresh({
+            updateCharts: this.updateCharts,
+          });
+        }
+      } catch (err) {
+        alert(err.message || err.toString());
+      } finally {
+        if (password || token) {
+          window.location.search = "";
+        }
+      }
+    }
   },
   filters: {
     bytes,
@@ -395,7 +421,7 @@ new Vue({
       if (value === null) return 'yyyy-MM-dd';
     },
   },
-  mounted() {
+  async mounted() {
     this.prefersDarkScheme.addListener(this.handlePrefersChange);
     this.setTheme(this.uiTheme);
 
@@ -403,55 +429,24 @@ new Vue({
 
     const urlParams = new URLSearchParams(window.location.search);
 
+    const password = urlParams.get("password");
     const token = urlParams.get("token");
+    const theme = urlParams.get("theme");
+    const lang = urlParams.get("lang");
 
-    if (token) {
-      this.api
-        .verifyToken({ token })
-        .then((session) => {
-          const theme = urlParams.get("theme");
-          const lang = urlParams.get("lang");
-            if (lang && i18n.availableLocales.includes(lang)) {
-              localStorage.setItem("lang", lang);
-              i18n.locale = lang;
-            }
-            if (theme) {
-              localStorage.setItem("theme", theme);
-            }
-
-            window.location.search = "";
-            this.authenticated = session.authenticated;
-            this.requiresPassword = session.requiresPassword;
-            this.refresh({
-              updateCharts: this.updateCharts,
-            }).catch((err) => {
-              alert(err.message || err.toString());
-            });
-        })
-        .catch((err) => {
-          alert(err.message || err.toString());
-        });
-    } else {
-      this.api
-        .getSession()
-        .then((session) => {
-          this.authenticated = session.authenticated;
-          this.requiresPassword = session.requiresPassword;
-          this.refresh({
-            updateCharts: this.updateCharts,
-          }).catch((err) => {
-            alert(err.message || err.toString());
-          });
-        })
-        .catch((err) => {
-          alert(err.message || err.toString());
-        });
+    if (lang && i18n.availableLocales.includes(lang)) {
+      localStorage.setItem("lang", lang);
+      i18n.locale = lang;
+    }
+    if (theme) {
+      localStorage.setItem("theme", theme);
     }
 
-    this.api.getRememberMeEnabled()
-      .then((rememberMeEnabled) => {
-        this.rememberMeEnabled = rememberMeEnabled;
-      });
+    this.tryAuth({ password, token });
+
+    this.api.getRememberMeEnabled().then((rememberMeEnabled) => {
+      this.rememberMeEnabled = rememberMeEnabled;
+    });
 
     setInterval(() => {
       this.refresh({
