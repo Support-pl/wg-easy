@@ -1,4 +1,4 @@
-name: Build & Publish Latest
+name: Build & Publish Latest Enabled
 
 on:
   workflow_dispatch:
