@@ -391,9 +391,9 @@ new Vue({
         }
 
         if (session) {
-          this.authenticated = session.authenticated;
-          this.requiresPassword = session.requiresPassword;
-          await this.refresh({
+          this.authenticated = session.authenticated || session.success;
+          this.requiresPassword = session.requiresPassword || false;
+          this.refresh({
             updateCharts: this.updateCharts,
           });
         }
@@ -401,7 +401,7 @@ new Vue({
         alert(err.message || err.toString());
       } finally {
         if (password || token) {
-          window.location.search = "";
+          window.history.replaceState(null, null, "");
         }
       }
     }
