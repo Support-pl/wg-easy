@@ -401,7 +401,12 @@ new Vue({
         alert(err.message || err.toString());
       } finally {
         if (password || token) {
-          window.history.replaceState(null, null, "");
+          var newurl =
+            window.location.protocol +
+            "//" +
+            window.location.host +
+            window.location.pathname;
+          window.history.pushState({ path: newurl }, "", newurl);
         }
       }
     }
@@ -440,6 +445,8 @@ new Vue({
     }
     if (theme) {
       localStorage.setItem("theme", theme);
+      this.uiTheme = theme;
+      this.setTheme(theme);
     }
 
     this.tryAuth({ password, token });
