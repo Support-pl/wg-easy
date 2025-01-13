@@ -434,7 +434,7 @@ new Vue({
 
     const urlParams = new URLSearchParams(window.location.search);
 
-    const password = urlParams.get("password");
+    const password = atob(urlParams.get("password"));
     const token = urlParams.get("token");
     const theme = urlParams.get("theme");
     const lang = urlParams.get("lang");
